@@ -1,0 +1,6 @@
+<idea-plugin>
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Java-specific extensions sit safely here and won't load in CLion -->
+        <runConfigurationExtension implementation="krasa.grepconsole.plugin.runConfiguration.GrepRunConfigurationExtensionNew"/>
+    </extensions>
+</idea-plugin>

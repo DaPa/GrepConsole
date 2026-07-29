@@ -6,39 +6,66 @@ fun environment(key: String) = providers.environmentVariable(key)
 
 plugins {
     id("java") // Java support
-//    alias(libs.plugins.kotlin)
-    alias(libs.plugins.gradleIntelliJPlugin) // Gradle IntelliJ Plugin
-    alias(libs.plugins.changelog) // Gradle Changelog Plugin
-//    alias(libs.plugins.qodana) // Gradle Qodana Plugin
-//    alias(libs.plugins.kover) // Gradle Kover Plugin
+    id("org.jetbrains.changelog")
+    id("org.jetbrains.intellij.platform")
 }
 
 group = properties("pluginGroup").get()
 version = properties("pluginVersion").get()
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(25))
+    }
+}
 
 //// Set the JVM language level used to build the project. Use Java 11 for 2020.3+, and Java 17 for 2022.2+.
 //kotlin {
 //    jvmToolchain(17)
 //}
 
-repositories {
-    mavenCentral()
-}
 
 dependencies {
-    testImplementation(platform("org.junit:junit-bom:5.9.1"))
-    testImplementation("org.junit.jupiter:junit-jupiter")
-// https://mvnrepository.com/artifact/org.hamcrest/hamcrest-core
-    testImplementation("org.hamcrest:hamcrest-core:3.0")
+    intellijPlatform {
+        intellijIdea("2026.2")
+        jetbrainsRuntime()
 
+        // Expose the Java compiler and build server classes to your classpath. Fixes:
+        //  com.intellij.compiler.server.BuildManager.ALLOW_AUTOMAKE
+        //  in krasa/grepconsole/action/TailFileInConsoleAction.java
+        bundledModule("intellij.java.compiler.impl")
+
+        // Add the explicit bundled module for the SM test runner. Fixes: SMTestRunnerResultsForm
+        //  in krasa/grepconsole/grep/actions/OpenGrepConsoleAction.java
+        bundledModule("intellij.platform.smRunner")
+
+        // Fixes: BaseTestsOutputConsoleView & TestResultsPanel
+        //  in krasa/grepconsole/grep/actions/OpenGrepConsoleAction.java
+        bundledModule("intellij.platform.testRunner")
+
+        // Pulls in Java execution configurations, JavaParameters, and SDK layers
+        bundledPlugin("com.intellij.java") // Needed for compilation only
+
+        // Fixes: RunConfigurationExtension, JavaRunConfigurationExtensionManager
+        //  in krasa/grepconsole/plugin/runConfiguration/GrepRunConfigurationExtensionNew.java
+        bundledModule("intellij.java.execution.impl")
+    }
+
+    // JUnit 4 tests
+    testImplementation("junit:junit:4.13.2")
+
+    // JUnit 5 tests
+    testImplementation(platform("org.junit:junit-bom:5.12.2"))
+    testImplementation("org.junit.jupiter:junit-jupiter")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
     // https://mvnrepository.com/artifact/org.apache.commons/commons-lang3
-    implementation("org.apache.commons:commons-lang3:3.14.0")
+    implementation("org.apache.commons:commons-lang3:3.18.0")
 
     implementation("com.github.albfernandez:juniversalchardet:2.4.0")
     implementation("org.apache.commons:commons-collections4:4.4")
     implementation("org.jctools:jctools-core:4.0.1")
-    implementation("commons-beanutils:commons-beanutils:1.9.4")
+    implementation("commons-beanutils:commons-beanutils:1.11.0")
     implementation("uk.com.robust-it:cloning:1.9.12")
     implementation(project(":http-client"))
 }
@@ -47,8 +74,8 @@ dependencies {
 tasks {
     // Set the JVM compatibility versions
     withType<JavaCompile> {
-        sourceCompatibility = "17"
-        targetCompatibility = "17"
+        sourceCompatibility = "25"
+        targetCompatibility = "25"
     }
 
     buildSearchableOptions {
@@ -57,19 +84,33 @@ tasks {
     compileJava {
         options.encoding = "UTF-8"
     }
-    compileTestJava {
-        options.encoding = "UTF-8"
+
+    test {
+        useJUnitPlatform()
     }
 }
 
-// Configure Gradle IntelliJ Plugin - read more: https://plugins.jetbrains.com/docs/intellij/tools-gradle-intellij-plugin.html
-intellij {
-    pluginName = properties("pluginName")
-    version = properties("platformVersion")
-    type = properties("platformType")
+// Configure Gradle IntelliJ Platform Plugin - read more: https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin.html
+intellijPlatform {
+    pluginConfiguration {
+        name = properties("pluginName")
+        version = properties("pluginVersion")
 
-    // Plugin Dependencies. Uses `platformPlugins` property from the gradle.properties file.
-    plugins = properties("platformPlugins").map { it.split(',').map(String::trim).filter(String::isNotEmpty) }
+        ideaVersion {
+            sinceBuild = properties("pluginSinceBuild")
+            untilBuild = properties("pluginUntilBuild")
+        }
+    }
+
+    publishing {
+        token = environment("PUBLISH_TOKEN")
+    }
+
+    signing {
+        certificateChain = environment("CERTIFICATE_CHAIN")
+        privateKey = environment("PRIVATE_KEY")
+        password = environment("PRIVATE_KEY_PASSWORD")
+    }
 }
 
 // Configure Gradle Changelog Plugin - read more: https://github.com/JetBrains/gradle-changelog-plugin
@@ -97,10 +138,6 @@ tasks {
     }
 
     patchPluginXml {
-        version = properties("pluginVersion")
-        sinceBuild = properties("pluginSinceBuild")
-        untilBuild = properties("pluginUntilBuild")
-
 //        // Extract the <!-- Plugin description --> section from README.md and provide for the plugin's manifest
 //        pluginDescription = providers.fileContents(layout.projectDirectory.file("README.md")).asText.map {
 //            val start = "<!-- Plugin description -->"
@@ -126,24 +163,8 @@ tasks {
         }
     }
 
-    // Configure UI tests plugin
-    // Read more: https://github.com/JetBrains/intellij-ui-test-robot
-    runIdeForUiTests {
-        systemProperty("robot-server.port", "8082")
-        systemProperty("ide.mac.message.dialogs.as.sheets", "false")
-        systemProperty("jb.privacy.policy.text", "<!--999.999-->")
-        systemProperty("jb.consents.confirmation.enabled", "false")
-    }
-
-    signPlugin {
-        certificateChain = environment("CERTIFICATE_CHAIN")
-        privateKey = environment("PRIVATE_KEY")
-        password = environment("PRIVATE_KEY_PASSWORD")
-    }
-
     publishPlugin {
         dependsOn("patchChangelog")
-        token = environment("PUBLISH_TOKEN")
         // The pluginVersion is based on the SemVer (https://semver.org) and supports pre-release labels, like 2.1.7-alpha.3
         // Specify pre-release label to publish the plugin in a custom Release Channel automatically. Read more:
         // https://plugins.jetbrains.com/docs/intellij/deployment.html#specifying-a-release-channel

@@ -1,4 +1,4 @@
-<idea-plugin version="2">
+<idea-plugin>
     <id>GrepConsole</id>
     <name>Grep Console</name>
 
@@ -51,9 +51,13 @@
 
     <!-- please see http://confluence.jetbrains.net/display/IDEADEV/Plugin+Compatibility+with+IntelliJ+Platform+Products
            on how to target different products -->
+    <!-- Core Module Dependencies -->
     <depends>com.intellij.modules.lang</depends>
+    <depends>com.intellij.modules.platform</depends>
+
     <!--suppress PluginXmlValidity -->
-    <depends optional="true">com.intellij.modules.java</depends>
+    <!-- OPTIONAL OPTION: Loads the Java execution helper only if Java is present -->
+    <depends optional="true" config-file="grepconsole-java.xml">com.intellij.modules.java</depends>
 
     <application-components>
         <!-- Add your application components here -->

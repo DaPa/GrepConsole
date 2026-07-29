@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## [13.5.1-IJ2026.2] - 2026-07-29
+
+- Draft (for testing on 2026.2.0.1)
+
 ## [13.4.0-IJ2023.3] - 2025-08-14
 
 - Fixed doubled statistic counts
@@ -61,6 +65,7 @@
 
 [Unreleased]: https://github.com/krasa/GrepConsole/compare/v13.4.0-IJ2023.3...HEAD
 
+[13.5.1-IJ2026.2]: unreleased
 [13.4.0-IJ2023.3]: https://github.com/krasa/GrepConsole/compare/v13.3.0-IJ2023.3...v13.4.0-IJ2023.3
 [13.3.0-IJ2023.3]: https://github.com/krasa/GrepConsole/compare/v13.2.0-IJ2023.3...v13.3.0-IJ2023.3
 [13.2.0-IJ2023.3]: https://github.com/krasa/GrepConsole/compare/v13.1.0-IJ2023.3...v13.2.0-IJ2023.3
